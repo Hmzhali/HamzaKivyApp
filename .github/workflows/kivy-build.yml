@@ -1,39 +1,45 @@
-name: Build Kivy APK
+name: رفع الملفات تلقائيًا
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]  # ابدأ العملية عند التحديث على فرع main
+
+# الصلاحيات المطلوبة لتحميل الأكشنات ورفع الملفات
+permissions:
+  actions: read
+  contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  upload-job:
+    name: رفع الملفات
+    runs-on: ubuntu-latest  # استخدم أحدث إصدار من الرنر
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      # الخطوة 1: تحميل الكود من الريبو
+      - name: تحميل الكود
+        uses: actions/checkout@v4  # إصدار حديث ومستقر
 
-      - name: Set up Python
-        uses: actions/upload-artifact@v3
+      # الخطوة 2: إنشاء ملف تجريبي (اختياري)
+      - name: إنشاء ملف تجريبي
+        run: |
+          echo "هذا ملف تجريبي" > test.txt
+          echo "تاريخ الإنشاء: $(date)" >> test.txt
+
+      # الخطوة 3: رفع الملف كـ Artifact
+      - name: رفع الملف
+        uses: actions/upload-artifact@v4  # الإصدار v4 هنا
         with:
-          python-version: "3.10"
+          name: ملفات-النتيجة
+          path: |
+            test.txt
+            *.log  # يمكنك تغيير المسارات حسب احتياجك
+          retention-days: 3  # احتفظ بالملفات لمدة 3 أيام
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git
-          pip install --upgrade pip
-          pip install buildozer cython
-
-      - name: Initialize buildozer
-        run: |
-          buildozer android clean
-
-      - name: Build APK
-        run: |
-          buildozer -v android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      # (اختياري) إرسال إشعار بالنجاح
+      - name: إشعار بالتليجرام
+        if: success()  # يعمل فقط إذا نجحت كل الخطوات السابقة
+        uses: appleboy/telegram-action@master
         with:
-          name: HamzaKivyApp
-          path: bin/*.apk
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "✅ تم رفع الملفات بنجاح!"
