@@ -4,7 +4,7 @@ package.name = hamzatrade
 package.domain = org.hamza
 source.dir = .
 source.main = HamzaTradeApp.py
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,ttf,json
 version = 1.0
 requirements = 
     python3==3.10.5,
@@ -14,13 +14,16 @@ requirements =
     matplotlib==3.7.1,
     numpy==1.24.4,
     openssl,
-    certifi
+    certifi,
+    requests==2.31.0,
+    pandas==2.0.3
 orientation = portrait
 fullscreen = 0
 android.permissions = 
     INTERNET,
     ACCESS_NETWORK_STATE,
-    FOREGROUND_SERVICE
+    FOREGROUND_SERVICE,
+    WAKE_LOCK
 android.api = 34
 android.minapi = 21
 android.ndk = 25b
