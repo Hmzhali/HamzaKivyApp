@@ -10,6 +10,7 @@ env:
   ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
   P4A_DIR: /home/runner/.buildozer/android/platform/python-for-android
   _JAVA_OPTIONS: "-Xmx4G -XX:+UseG1GC"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
 
 jobs:
   build:
@@ -28,9 +29,9 @@ jobs:
         with:
           python-version: "3.10"
           cache: 'pip'
-          cache-dependency-path: ''
+          cache-dependency-path: 'src/buildozer.spec'
 
-      - name: Install essential tools
+      - name: Install system dependencies
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
@@ -38,20 +39,20 @@ jobs:
             zip unzip openjdk-17-jdk \
             python3-pip autoconf libtool \
             zlib1g-dev libncurses5-dev \
-            libffi-dev libssl-dev patchelf
+            libffi-dev libssl-dev patchelf \
+            cmake ninja-build
 
       - name: Setup Python environment
         working-directory: ./src
         run: |
           python -m pip install --upgrade pip==24.0 setuptools==70.0.0 wheel==0.43.0
-          pip install buildozer==1.5.0 cython==0.29.36
+          pip install -r <(grep '^requirements =' buildozer.spec | sed 's/requirements = //;s/,/\n/g')
 
       - name: Clone python-for-android
         run: |
-          mkdir -p ~/.buildozer/android/platform
-          cd ~/.buildozer/android/platform
-          git clone https://github.com/kivy/python-for-android.git
-          cd python-for-android
+          mkdir -p $P4A_DIR
+          git clone https://github.com/kivy/python-for-android.git $P4A_DIR
+          cd $P4A_DIR
           git checkout 2024.01.21
 
       - name: Setup Android SDK
@@ -62,7 +63,9 @@ jobs:
           unzip -q commandlinetools-linux-*.zip
           mv cmdline-tools latest
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" \
+            "platforms;android-34" "emulator" "patcher;v4"
 
       - name: Setup Android NDK
         run: |
@@ -82,11 +85,14 @@ jobs:
         working-directory: ./src
         run: |
           if ls bin/*.apk 1> /dev/null 2>&1; then
-            echo "APK generated successfully!"
+            echo "✅ APK generated successfully!"
+            echo "📦 APK Info:"
             ls -lh bin/*.apk
+            echo -e "\n📊 File size:"
+            du -sh bin/*.apk
           else
-            echo "::error::APK generation failed!"
-            echo "Build logs:"
+            echo "::error::❌ APK generation failed!"
+            echo "📜 Build logs:"
             cat .buildozer/android/platform/build-*/*.log
             exit 1
           fi
@@ -104,3 +110,4 @@ jobs:
         with:
           name: Build_Logs
           path: src/.buildozer/android/platform/build-*/*.log
+          retention-days: 3
