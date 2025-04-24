@@ -2,8 +2,7 @@ name: Build Kivy APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
@@ -16,24 +15,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool wget
+
+      - name: Install Python dependencies
+        run: |
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Install Android SDK commandline tools (fixed path)
+      - name: Download and fix Android SDK tools
         run: |
-          mkdir -p ~/.buildozer/android/platform
-          cd ~/.buildozer/android/platform
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip -d cmdline-tools
-          mkdir -p android-sdk/cmdline-tools/latest
-          mv cmdline-tools/cmdline-tools/* android-sdk/cmdline-tools/latest/
-          yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk "platform-tools" "platforms;android-31" "build-tools;33.0.2"
+          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
+          unzip tools.zip -d tmp
+          mv tmp/cmdline-tools latest
+          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=~/.buildozer/android/platform/android-sdk "platform-tools" "platforms;android-31" "build-tools;33.0.2"
 
       - name: Build APK
         run: |
