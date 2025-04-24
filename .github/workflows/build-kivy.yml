@@ -26,11 +26,11 @@ jobs:
           pip install buildozer cython
 
       - name: Download and fix Android SDK tools
-        run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
-          mkdir -p cmdline-tools/latest
-          unzip sdk-tools.zip -d cmdline-tools/latest
-          yes | cmdline-tools/latest/cmdline-tools/bin/sdkmanager --licenses
-          cmdline-tools/latest/cmdline-tools/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+  run: |
+    mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+    cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+    wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
+    unzip sdk-tools.zip -d cmdline-tools
+    mv cmdline-tools/cmdline-tools cmdline-tools/latest
+    yes | cmdline-tools/latest/bin/sdkmanager --licenses
+    cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
