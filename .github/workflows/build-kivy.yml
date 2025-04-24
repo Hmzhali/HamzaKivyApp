@@ -15,7 +15,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90  # زيادة الوقت إلى 90 دقيقة
 
     steps:
       - name: Checkout repository
@@ -23,6 +23,7 @@ jobs:
         with:
           path: 'src'
           fetch-depth: 0
+          submodules: recursive  # إضافة هذه السطر للتعامل مع submodules
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -40,14 +41,14 @@ jobs:
             python3-pip autoconf libtool \
             zlib1g-dev libncurses5-dev \
             libffi-dev libssl-dev patchelf \
-            cmake ninja-build
+            cmake ninja-build pkg-config
 
       - name: Setup Python environment
         working-directory: ./src
         run: |
           echo "⚙️ Setting up Python environment..."
-          python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
-          pip install buildozer==1.5.0 cython==0.29.36
+          python -m pip install --upgrade "pip>=23.3,<24.1" setuptools==70.0.0 wheel==0.43.0
+          pip install buildozer==1.5.0 cython==0.29.36 six==1.16.0
           echo "✅ Python environment ready!"
 
       - name: Clone python-for-android
@@ -57,27 +58,30 @@ jobs:
           git clone --depth 1 --branch 2024.05.20 \
             https://github.com/kivy/python-for-android.git $P4A_DIR
           cd $P4A_DIR
+          echo "🔍 Verifying clone..."
           git log -1 --oneline
+          ls -la
 
       - name: Setup Android SDK
         run: |
           echo "📱 Setting up Android SDK..."
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           cd $ANDROID_SDK_ROOT/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          wget --tries=3 --retry-connrefused -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-*.zip
           mv cmdline-tools latest
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
           $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" "build-tools;34.0.0" \
-            "platforms;android-34" "emulator" "patcher;v4"
+            "platforms;android-34" "emulator" "patcher;v4" "cmake;3.22.1"
           echo "✅ Android SDK ready!"
 
       - name: Setup Android NDK
         run: |
           echo "🛠️ Setting up Android NDK..."
+          mkdir -p ~/.buildozer/android/platform
           cd ~/.buildozer/android/platform
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          wget --tries=3 --retry-connrefused -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
           echo "✅ Android NDK ready!"
@@ -86,21 +90,32 @@ jobs:
         working-directory: ./src
         run: |
           echo "🏗️ Starting build process..."
-          rm -rf .buildozer/android/platform/build-*
+          echo "🧹 Cleaning previous builds..."
+          rm -rf .buildozer/android/platform/build-* bin/*.apk
+          
+          echo "🔧 Running buildozer clean..."
           buildozer -v android clean
-          buildozer -v android debug
+          
+          echo "🚀 Building APK..."
+          buildozer -v android debug 2>&1 | tee build.log
+          
           echo "✅ Build completed!"
 
       - name: Verify APK
         working-directory: ./src
         run: |
-          if ls bin/*.apk 1> /dev/null 2>&1; then
+          if [ -f bin/*.apk ]; then
             echo "🎉 APK generated successfully!"
+            echo "📦 APK Details:"
             ls -lh bin/*.apk
-            du -sh bin/*.apk
+            echo -e "\n📊 Size: $(du -sh bin/*.apk | cut -f1)"
           else
             echo "::error::❌ APK generation failed!"
-            cat .buildozer/android/platform/build-*/*.log
+            echo "📜 Build logs:"
+            cat build.log
+            echo "::group::Full build directory contents"
+            ls -R .buildozer
+            echo "::endgroup::"
             exit 1
           fi
 
@@ -110,11 +125,15 @@ jobs:
           name: HamzaTradeApp_APK
           path: src/bin/*.apk
           retention-days: 7
+          if-no-files-found: error
 
       - name: Upload build logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: Build_Logs
-          path: src/.buildozer/android/platform/build-*/*.log
+          path: |
+            src/build.log
+            src/.buildozer/android/platform/build-*/*.log
           retention-days: 3
+          if-no-files-found: warn
