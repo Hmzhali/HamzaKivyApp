@@ -3,7 +3,7 @@ title = HamzaTradeApp
 package.name = hamzatrade
 package.domain = org.hamza
 source.dir = .
-source.main = Hama2TradeApp.py  # تغيير ليتطابق مع اسم الملف الفعلي
+source.main = Hama2TradeApp.py
 source.include_exts = py,png,jpg,kv,atlas,ttf,json
 version = 1.0
 requirements = 
@@ -15,13 +15,15 @@ requirements =
     numpy==1.24.4,
     openssl,
     certifi,
-    requests==2.31.0
+    requests==2.31.0,
+    pandas==2.0.3
 orientation = portrait
 fullscreen = 0
 android.permissions = 
     INTERNET,
     ACCESS_NETWORK_STATE,
-    FOREGROUND_SERVICE
+    FOREGROUND_SERVICE,
+    WAKE_LOCK
 android.api = 34
 android.minapi = 21
 android.ndk = 25b
@@ -31,5 +33,6 @@ android.accept_sdk_license = True
 [buildozer]
 log_level = 2
 warn_on_root = 1
+android.p4a_dir = %(HOME)s/.buildozer/android/platform/python-for-android
 java.heap_size = 4G
 android.arch = arm64-v8a
