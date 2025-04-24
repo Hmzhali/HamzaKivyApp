@@ -1,68 +1,64 @@
-name: Build Kivy APK
+name: Build HamzaTradeApp
 
-on:
-  push:
-    branches: [ main ]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          cache: 'pip'
 
       - name: Install system dependencies
         run: |
-          sudo apt update
-          sudo apt install -y \
+          sudo apt-get update -qq
+          sudo apt-get install -y \
             zip unzip openjdk-17-jdk \
             python3-pip autoconf libtool \
-            git wget zlib1g-dev ncurses-dev
+            git wget zlib1g-dev \
+            libncurses5-dev libffi-dev
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip wheel
+          python -m pip install --upgrade pip wheel
           pip install buildozer==1.5.0 cython==0.29.36
 
       - name: Setup Android SDK
         run: |
           mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
           cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-*.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip
           mv cmdline-tools latest
-          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
           ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34" "emulator"
 
       - name: Setup Android NDK
         run: |
           cd ~/.buildozer/android/platform
-          wget https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip android-ndk-r25b-linux.zip
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
-
-      - name: Install Apache ANT
-        run: |
-          wget https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
-          tar xvf apache-ant-1.9.4-bin.tar.gz -C ~/.buildozer/android/platform
-          mv ~/.buildozer/android/platform/apache-ant-1.9.4 ~/.buildozer/android/platform/ant
 
       - name: Build APK
         run: |
           export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
           export ANDROID_NDK_HOME="$HOME/.buildozer/android/platform/android-ndk-r25b"
-          export PATH="$PATH:$HOME/.buildozer/android/platform/ant/bin"
+          export PATH="$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin"
+          buildozer -v android clean
           buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: App-APK
+          name: HamzaTradeApp_APK
           path: bin/*.apk
+          retention-days: 5
