@@ -21,8 +21,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool wget
+          pip install --upgrade pip
           pip install buildozer cython
+          mkdir -p ~/.buildozer/android/platform/android-sdk
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
 
       - name: Build APK
         run: |
