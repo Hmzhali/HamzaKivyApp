@@ -47,7 +47,6 @@ jobs:
         run: |
           echo "⚙️ Setting up Python environment..."
           python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
-          echo "📦 Installing build tools..."
           pip install buildozer==1.5.0 cython==0.29.36
           echo "✅ Python environment ready!"
 
@@ -58,7 +57,6 @@ jobs:
           git clone --depth 1 --branch 2024.05.20 \
             https://github.com/kivy/python-for-android.git $P4A_DIR
           cd $P4A_DIR
-          echo "✅ Cloned version:"
           git log -1 --oneline
 
       - name: Setup Android SDK
@@ -98,13 +96,10 @@ jobs:
         run: |
           if ls bin/*.apk 1> /dev/null 2>&1; then
             echo "🎉 APK generated successfully!"
-            echo "📦 APK Info:"
             ls -lh bin/*.apk
-            echo -e "\n📊 File size:"
             du -sh bin/*.apk
           else
             echo "::error::❌ APK generation failed!"
-            echo "📜 Build logs:"
             cat .buildozer/android/platform/build-*/*.log
             exit 1
           fi
