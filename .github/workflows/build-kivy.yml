@@ -45,18 +45,25 @@ jobs:
       - name: Setup Python environment
         working-directory: ./src
         run: |
-          python -m pip install --upgrade pip==24.0 setuptools==70.0.0 wheel==0.43.0
-          pip install -r <(grep '^requirements =' buildozer.spec | sed 's/requirements = //;s/,/\n/g')
+          echo "⚙️ Setting up Python environment..."
+          python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
+          echo "📦 Installing build tools..."
+          pip install buildozer==1.5.0 cython==0.29.36
+          echo "✅ Python environment ready!"
 
       - name: Clone python-for-android
         run: |
+          echo "🚀 Cloning python-for-android..."
           mkdir -p $P4A_DIR
-          git clone https://github.com/kivy/python-for-android.git $P4A_DIR
+          git clone --depth 1 --branch 2024.05.20 \
+            https://github.com/kivy/python-for-android.git $P4A_DIR
           cd $P4A_DIR
-          git checkout 2024.01.21
+          echo "✅ Cloned version:"
+          git log -1 --oneline
 
       - name: Setup Android SDK
         run: |
+          echo "📱 Setting up Android SDK..."
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           cd $ANDROID_SDK_ROOT/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
@@ -66,26 +73,31 @@ jobs:
           $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" "build-tools;34.0.0" \
             "platforms;android-34" "emulator" "patcher;v4"
+          echo "✅ Android SDK ready!"
 
       - name: Setup Android NDK
         run: |
+          echo "🛠️ Setting up Android NDK..."
           cd ~/.buildozer/android/platform
           wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
+          echo "✅ Android NDK ready!"
 
       - name: Build APK
         working-directory: ./src
         run: |
+          echo "🏗️ Starting build process..."
           rm -rf .buildozer/android/platform/build-*
           buildozer -v android clean
           buildozer -v android debug
+          echo "✅ Build completed!"
 
       - name: Verify APK
         working-directory: ./src
         run: |
           if ls bin/*.apk 1> /dev/null 2>&1; then
-            echo "✅ APK generated successfully!"
+            echo "🎉 APK generated successfully!"
             echo "📦 APK Info:"
             ls -lh bin/*.apk
             echo -e "\n📊 File size:"
