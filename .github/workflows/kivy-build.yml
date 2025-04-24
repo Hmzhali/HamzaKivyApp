@@ -1,45 +1,35 @@
-name: رفع الملفات تلقائيًا
+name: Build Kivy APK
 
 on:
   push:
-    branches: [main]  # ابدأ العملية عند التحديث على فرع main
-
-# الصلاحيات المطلوبة لتحميل الأكشنات ورفع الملفات
-permissions:
-  actions: read
-  contents: write
+    branches:
+      - main
 
 jobs:
-  upload-job:
-    name: رفع الملفات
-    runs-on: ubuntu-latest  # استخدم أحدث إصدار من الرنر
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-      # الخطوة 1: تحميل الكود من الريبو
-      - name: تحميل الكود
-        uses: actions/checkout@v4  # إصدار حديث ومستقر
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      # الخطوة 2: إنشاء ملف تجريبي (اختياري)
-      - name: إنشاء ملف تجريبي
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
         run: |
-          echo "هذا ملف تجريبي" > test.txt
-          echo "تاريخ الإنشاء: $(date)" >> test.txt
+          sudo apt update
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool
+          pip install buildozer cython
 
-      # الخطوة 3: رفع الملف كـ Artifact
-      - name: رفع الملف
-        uses: actions/upload-artifact@v4  # الإصدار v4 هنا
-        with:
-          name: ملفات-النتيجة
-          path: |
-            test.txt
-            *.log  # يمكنك تغيير المسارات حسب احتياجك
-          retention-days: 3  # احتفظ بالملفات لمدة 3 أيام
+      - name: Run Buildozer
+        run: |
+          echo y | buildozer android debug
 
-      # (اختياري) إرسال إشعار بالنجاح
-      - name: إشعار بالتليجرام
-        if: success()  # يعمل فقط إذا نجحت كل الخطوات السابقة
-        uses: appleboy/telegram-action@master
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
         with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "✅ تم رفع الملفات بنجاح!"
+          name: HamzaTradeApp
+          path: bin/*.apk
