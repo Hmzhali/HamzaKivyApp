@@ -24,3 +24,4 @@ class HamzaTradeApp(App):
 
 if __name__ == '__main__':
     HamzaTradeApp().run()
+print("تطبيق التداول - النسخة النهائية")
