@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -21,16 +21,25 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool
-          pip install --upgrade pip
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip libtool git
           pip install buildozer cython
 
       - name: Download and fix Android SDK tools
-  run: |
-    mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
-    cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
-    wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
-    unzip sdk-tools.zip -d cmdline-tools
-    mv cmdline-tools/cmdline-tools cmdline-tools/latest
-    yes | cmdline-tools/latest/bin/sdkmanager --licenses
-    cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+        run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
+          unzip sdk-tools.zip -d cmdline-tools
+          mv cmdline-tools/cmdline-tools cmdline-tools/latest
+          yes | cmdline-tools/latest/bin/sdkmanager --licenses
+          cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+
+      - name: Build APK
+        run: |
+          buildozer android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HamzaKivyApp
+          path: bin/*.apk
