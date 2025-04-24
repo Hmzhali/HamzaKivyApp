@@ -1,5 +1,5 @@
 [app]
-title = HamzaTradeApp
+title = HamzaTradeApp.py
 package.name = hamzatrade
 package.domain = org.hamza
 source.dir = .
