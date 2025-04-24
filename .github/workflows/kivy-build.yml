@@ -10,26 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git libtool
-          pip install buildozer cython
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip openjdk-17-jdk zip unzip git
+        pip install buildozer cython
 
-      - name: Run Buildozer
-        run: |
-          echo y | buildozer android debug
+    - name: Initialize buildozer
+      run: buildozer init || true
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: HamzaTradeApp
-          path: bin/*.apk
+    - name: Build APK
+      run: |
+        buildozer android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: HamzaTradeApp
+        path: bin/*.apk
