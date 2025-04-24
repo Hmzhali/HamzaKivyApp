@@ -30,15 +30,7 @@ jobs:
           mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
           cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
-          unzip sdk-tools.zip -d latest
-          yes | ./latest/bin/sdkmanager --licenses
-          ./latest/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
-
-      - name: Build APK
-        run: buildozer android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: HamzaKivyApp
-          path: bin/*.apk
+          mkdir -p cmdline-tools/latest
+          unzip sdk-tools.zip -d cmdline-tools/latest
+          yes | cmdline-tools/latest/cmdline-tools/bin/sdkmanager --licenses
+          cmdline-tools/latest/cmdline-tools/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33" "platform-tools"
