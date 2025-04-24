@@ -1,20 +1,37 @@
 name: Build HamzaTradeApp
 
-on: [push, workflow_dispatch]
+on: 
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
+  ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
+  PATH: $PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: 'src'
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
           cache: 'pip'
+          cache-dependency-path: 'src/buildozer.spec'
+
+      - name: Debug - List files
+        run: |
+          echo "Project structure:"
+          ls -R src/
 
       - name: Install system dependencies
         run: |
@@ -23,42 +40,62 @@ jobs:
             zip unzip openjdk-17-jdk \
             python3-pip autoconf libtool \
             git wget zlib1g-dev \
-            libncurses5-dev libffi-dev
+            libncurses5-dev libffi-dev \
+            libssl-dev patchelf
 
       - name: Install Python dependencies
+        working-directory: ./src
         run: |
           python -m pip install --upgrade pip wheel
-          pip install buildozer==1.5.0 cython==0.29.36
+          pip install -r <(grep '^requirements =' buildozer.spec | cut -d= -f2 | tr -d ' ' | tr ',' '\n')
 
       - name: Setup Android SDK
         run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-*.zip
           mv cmdline-tools latest
-          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
-          ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" "build-tools;34.0.0" "platforms;android-34" "emulator"
 
       - name: Setup Android NDK
         run: |
+          mkdir -p $ANDROID_NDK_HOME
           cd ~/.buildozer/android/platform
           wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
 
       - name: Build APK
+        working-directory: ./src
         run: |
-          export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-          export ANDROID_NDK_HOME="$HOME/.buildozer/android/platform/android-ndk-r25b"
-          export PATH="$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin"
+          export _JAVA_OPTIONS="-Xmx4G -XX:+UseG1GC"
           buildozer -v android clean
           buildozer -v android debug
+
+      - name: Verify APK
+        working-directory: ./src
+        run: |
+          if [ ! -f bin/*.apk ]; then
+            echo "::error::APK file not found!"
+            ls -R bin/
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: HamzaTradeApp_APK
-          path: bin/*.apk
-          retention-days: 5
+          path: src/bin/*.apk
+          retention-days: 7
+
+      - name: Upload build log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Logs
+          path: |
+            src/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build.log
+            src/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/gradle.log
