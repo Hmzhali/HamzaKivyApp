@@ -15,7 +15,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Install Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v2.1.1  # إصدار محدث
         with:
           packages: |
             cmdline-tools;latest
@@ -24,13 +24,18 @@ jobs:
             build-tools;34.0.0
           accept-licenses: true
 
+      - name: Fix paths
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" >> local.properties
+
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # إصدار محدث
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
