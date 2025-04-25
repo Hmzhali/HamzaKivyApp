@@ -15,7 +15,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -23,7 +23,6 @@ jobs:
         with:
           path: 'src'
           fetch-depth: 0
-          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -41,99 +40,43 @@ jobs:
             python3-pip autoconf libtool \
             zlib1g-dev libncurses5-dev \
             libffi-dev libssl-dev patchelf \
-            cmake ninja-build pkg-config
+            cmake ninja-build
 
       - name: Setup Python environment
         working-directory: ./src
         run: |
-          echo "⚙️ Setting up Python environment..."
-          python -m pip install --upgrade "pip>=23.3,<24.1" setuptools==70.0.0 wheel==0.43.0
-          pip install buildozer==1.5.0 cython==0.29.36 six==1.16.0
-          echo "✅ Python environment ready!"
+          python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
+          pip install buildozer==1.5.0 cython==0.29.36
 
       - name: Clone python-for-android
         run: |
-          echo "🚀 Cloning python-for-android..."
           mkdir -p $P4A_DIR
-          
-          if ! git clone --depth 1 --branch 2024.05.20 \
-              https://github.com/kivy/python-for-android.git $P4A_DIR; then
-              echo "⚠️ Failed to clone specific version, trying master branch..."
-              rm -rf $P4A_DIR
-              git clone --depth 1 --branch master \
-                  https://github.com/kivy/python-for-android.git $P4A_DIR
-              
-              cd $P4A_DIR
-              echo "ℹ️ Using latest master branch version:"
-              git log -1 --oneline
-          else
-              cd $P4A_DIR
-              echo "✅ Successfully cloned version 2024.05.20"
-          fi
-          
-          echo "🔍 Repository contents:"
-          ls -la
-          echo "🌿 Current branch:"
-          git branch -a
-          echo "🏷️ Latest tag:"
-          git describe --tags --abbrev=0 || echo "No tags found"
+          git clone https://github.com/kivy/python-for-android.git $P4A_DIR
 
       - name: Setup Android SDK
         run: |
-          echo "📱 Setting up Android SDK..."
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           cd $ANDROID_SDK_ROOT/cmdline-tools
-          wget --tries=3 --retry-connrefused -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-*.zip
           mv cmdline-tools latest
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
           $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" "build-tools;34.0.0" \
-            "platforms;android-34" "emulator" "patcher;v4" "cmake;3.22.1"
-          echo "✅ Android SDK ready!"
+            "platforms;android-34" "emulator"
 
       - name: Setup Android NDK
         run: |
-          echo "🛠️ Setting up Android NDK..."
-          mkdir -p ~/.buildozer/android/platform
           cd ~/.buildozer/android/platform
-          wget --tries=3 --retry-connrefused -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
-          echo "✅ Android NDK ready!"
 
       - name: Build APK
         working-directory: ./src
         run: |
-          echo "🏗️ Starting build process..."
-          echo "🧹 Cleaning previous builds..."
-          rm -rf .buildozer/android/platform/build-* bin/*.apk
-          
-          echo "🔧 Running buildozer clean..."
           buildozer -v android clean
-          
-          echo "🚀 Building APK..."
-          buildozer -v android debug 2>&1 | tee build.log
-          
-          echo "✅ Build completed!"
-
-      - name: Verify APK
-        working-directory: ./src
-        run: |
-          if [ -f bin/*.apk ]; then
-            echo "🎉 APK generated successfully!"
-            echo "📦 APK Details:"
-            ls -lh bin/*.apk
-            echo -e "\n📊 Size: $(du -sh bin/*.apk | cut -f1)"
-          else
-            echo "::error::❌ APK generation failed!"
-            echo "📜 Build logs:"
-            cat build.log
-            echo "::group::Full build directory contents"
-            ls -R .buildozer
-            echo "::endgroup::"
-            exit 1
-          fi
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -141,15 +84,11 @@ jobs:
           name: HamzaTradeApp_APK
           path: src/bin/*.apk
           retention-days: 7
-          if-no-files-found: error
 
       - name: Upload build logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: Build_Logs
-          path: |
-            src/build.log
-            src/.buildozer/android/platform/build-*/*.log
+          path: src/.buildozer/android/platform/build-*/*.log
           retention-days: 3
-          if-no-files-found: warn
