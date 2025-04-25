@@ -57,9 +57,6 @@ jobs:
          echo "🚀 Cloning python-for-android..."
           mkdir -p $P4A_DIR
           git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git $P4A_DIR
-          cd $P4A_DIR
-          echo "✅ Cloned version:"
-          git log -1 --oneline
       
       - name: Setup Android SDK
         run: |
