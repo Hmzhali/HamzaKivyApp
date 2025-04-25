@@ -1,4 +1,4 @@
-name: Build HamzaTradeApp APK
+name: Build HamzaTradeApp
 
 on:
   push:
@@ -8,8 +8,9 @@ on:
 env:
   ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
   ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
-  _JAVA_OPTIONS: "-Xmx4g"
-  GRADLE_OPTS: "-Xmx4g"
+  P4A_DIR: /home/runner/.buildozer/android/platform/python-for-android
+  _JAVA_OPTIONS: "-Xmx4G -XX:+UseG1GC"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
 
 jobs:
   build:
@@ -17,53 +18,62 @@ jobs:
     timeout-minutes: 60
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          zip unzip openjdk-17-jdk python3-pip \
-          git wget libncurses5 libffi-dev libssl-dev \
-          libz-dev autoconf libtool cmake ninja-build
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            tar gzip git wget \
+            zip unzip openjdk-17-jdk \
+            python3-pip autoconf libtool \
+            zlib1g-dev libncurses5-dev \
+            libffi-dev libssl-dev patchelf \
+            cmake ninja-build
 
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip wheel
-        pip install buildozer==1.5.0 cython==0.29.36
+      - name: Setup Python environment
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install buildozer==1.5.0 cython==0.29.36
 
-    - name: Setup Android SDK
-      run: |
-        mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-        cd $ANDROID_SDK_ROOT/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -q commandlinetools-linux-9477386_latest.zip
-        mv cmdline-tools latest
-        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-          "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+      - name: Clone python-for-android
+        run: |
+          mkdir -p $P4A_DIR
+          git clone https://github.com/kivy/python-for-android.git $P4A_DIR
 
-    - name: Setup Android NDK
-      run: |
-        cd ~/.buildozer/android/platform
-        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-        unzip -q android-ndk-r25b-linux.zip
-        rm android-ndk-r25b-linux.zip
+      - name: Setup Android SDK
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip
+          mv cmdline-tools latest
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34" "emulator"
 
-    - name: Build APK
-      run: |
-        export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
-        buildozer android clean
-        buildozer android debug
+      - name: Setup Android NDK
+        run: |
+          cd ~/.buildozer/android/platform
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip
+          rm android-ndk-r25b-linux.zip
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: HamzaTradeApp-APK
-        path: bin/*.apk
+      - name: Build APK
+        run: |
+          buildozer -v android clean
+          buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HamzaTradeApp_APK
+          path: bin/*.apk
