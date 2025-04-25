@@ -15,7 +15,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90  # زيادة الوقت إلى 90 دقيقة
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
@@ -23,7 +23,7 @@ jobs:
         with:
           path: 'src'
           fetch-depth: 0
-          submodules: recursive  # إضافة هذه السطر للتعامل مع submodules
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -55,12 +55,28 @@ jobs:
         run: |
           echo "🚀 Cloning python-for-android..."
           mkdir -p $P4A_DIR
-          git clone --depth 1 --branch 2024.05.20 \
-            https://github.com/kivy/python-for-android.git $P4A_DIR
-          cd $P4A_DIR
-          echo "🔍 Verifying clone..."
-          git log -1 --oneline
+          
+          if ! git clone --depth 1 --branch 2024.05.20 \
+              https://github.com/kivy/python-for-android.git $P4A_DIR; then
+              echo "⚠️ Failed to clone specific version, trying master branch..."
+              rm -rf $P4A_DIR
+              git clone --depth 1 --branch master \
+                  https://github.com/kivy/python-for-android.git $P4A_DIR
+              
+              cd $P4A_DIR
+              echo "ℹ️ Using latest master branch version:"
+              git log -1 --oneline
+          else
+              cd $P4A_DIR
+              echo "✅ Successfully cloned version 2024.05.20"
+          fi
+          
+          echo "🔍 Repository contents:"
           ls -la
+          echo "🌿 Current branch:"
+          git branch -a
+          echo "🏷️ Latest tag:"
+          git describe --tags --abbrev=0 || echo "No tags found"
 
       - name: Setup Android SDK
         run: |
