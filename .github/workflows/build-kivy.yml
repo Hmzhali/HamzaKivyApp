@@ -59,9 +59,9 @@ jobs:
 
       - name: Clone python-for-android
         run: |
-          mkdir -p $P4A_DIR
-          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git $P4A_DIR
-
+          mkdir -p $HOME/.buildozer/android/platform
+          cd $HOME/.buildozer/android/platform
+          git clone --branch develop https://github.com/kivy/python-for-android.git
       - name: Build APK
         run: |
           buildozer -v android clean
