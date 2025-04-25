@@ -6,24 +6,10 @@ source.dir = .
 source.main = Hama2TradeApp.py
 source.include_exts = py,png,jpg,kv,atlas,ttf,json
 version = 1.0
-requirements = 
-    python3==3.10.5,
-    kivy==2.2.1,
-    plyer==2.1.0,
-    python-binance==1.0.19,
-    matplotlib==3.7.1,
-    numpy==1.24.4,
-    openssl,
-    certifi,
-    requests==2.31.0,
-    pandas==2.0.3
+requirements = python3,kivy,plyer,python-binance,matplotlib,numpy,openssl,certifi,requests,pandas
 orientation = portrait
 fullscreen = 0
-android.permissions = 
-    INTERNET,
-    ACCESS_NETWORK_STATE,
-    FOREGROUND_SERVICE,
-    WAKE_LOCK
+android.permissions = INTERNET, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE, WAKE_LOCK
 android.api = 34
 android.minapi = 21
 android.ndk = 25b
@@ -33,6 +19,5 @@ android.accept_sdk_license = True
 [buildozer]
 log_level = 2
 warn_on_root = 1
-android.p4a_dir = %(HOME)s/.buildozer/android/platform/python-for-android
 java.heap_size = 4G
 android.arch = arm64-v8a
