@@ -32,7 +32,8 @@ jobs:
          python -m pip install --upgrade pip wheel
           pip install buildozer cython==0.29.36
           pip install appdirs packaging colorama jinja2 requests sh six pyyaml
-    
+          pip install toml
+          
       - name: Setup Android SDK & NDk
         run: |
           mkdir -p .buildozer/android/platform
