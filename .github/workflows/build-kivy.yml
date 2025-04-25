@@ -30,10 +30,10 @@ jobs:
       - name: Install Python dependencies
         run: |
          python -m pip install --upgrade pip wheel
-         pip install buildozer cython==0.29.36
-         pip install appdirs packaging colorama
+          pip install buildozer cython==0.29.36
+          pip install appdirs packaging colorama jinja2 requests sh six pyyaml
     
-      - name: Setup Android SDK & NDK
+      - name: Setup Android SDK & NDk
         run: |
           mkdir -p .buildozer/android/platform
           mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools
