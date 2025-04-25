@@ -20,33 +20,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          cache: pip
 
       - name: Install system dependencies
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
-            tar gzip git wget \
-          zip unzip openjdk-17-jdk \
-           python3-pip autoconf libtool \
-           zlib1g-dev libncurses-dev \
-            libffi-dev libssl-dev patchelf \
-            cmake ninja-build
+            tar gzip git wget zip unzip openjdk-17-jdk \
+            python3-pip autoconf libtool zlib1g-dev \
+            libncurses5-dev libffi-dev libssl-dev patchelf cmake ninja-build
+
       - name: Setup Python environment
         run: |
-          pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
           pip install buildozer==1.5.0 cython==0.29.36
-
-      - name: Clone python-for-android
-        run: |
-          mkdir -p $P4A_DIR
-          git clone https://github.com/kivy/python-for-android.git $P4A_DIR
 
       - name: Setup Android SDK
         run: |
@@ -66,6 +58,11 @@ jobs:
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
 
+      - name: Clone python-for-android
+        run: |
+          mkdir -p $P4A_DIR
+          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git $P4A_DIR
+
       - name: Build APK
         run: |
           buildozer -v android clean
@@ -76,3 +73,12 @@ jobs:
         with:
           name: HamzaTradeApp_APK
           path: bin/*.apk
+          retention-days: 7
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Logs
+          path: .buildozer/android/platform/build-*/dists/*/*.log
+          retention-days: 3
