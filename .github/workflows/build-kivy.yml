@@ -33,12 +33,11 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y \
             tar gzip git wget \
-            zip unzip openjdk-17-jdk \
-            python3-pip autoconf libtool \
-            zlib1g-dev libncurses5-dev \
+          zip unzip openjdk-17-jdk \
+           python3-pip autoconf libtool \
+           zlib1g-dev libncurses-dev \
             libffi-dev libssl-dev patchelf \
             cmake ninja-build
-
       - name: Setup Python environment
         run: |
           pip install --upgrade pip setuptools wheel
