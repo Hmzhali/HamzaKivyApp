@@ -7,6 +7,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: 'src'  # تحديد مسار واضح للتحقق من الملفات
+
+      - name: Verify project structure
+        run: |
+          ls -la src/
+          if [ ! -f "src/main.py" ]; then
+            echo "❌ Error: main.py not found in src directory!"
+            exit 1
+          fi
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -27,40 +37,49 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install --upgrade buildozer cython==0.29.33 virtualenv
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK (Fixed)
         run: |
           mkdir -p ~/.android
           touch ~/.android/repositories.cfg
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-*.zip -d ~/.android/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip -d ~/.android/cmdline-tools
           mv ~/.android/cmdline-tools/cmdline-tools ~/.android/cmdline-tools/latest
-          echo "export ANDROID_HOME=$HOME/.android" >> ~/.bashrc
-          echo "export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools" >> ~/.bashrc
-          source ~/.bashrc
+          echo "export ANDROID_HOME=$HOME/.android" >> $GITHUB_ENV
+          echo "$HOME/.android/cmdline-tools/latest/bin:$HOME/.android/platform-tools" >> $GITHUB_PATH
 
-      - name: Accept Android licenses
+      - name: Accept Android licenses (Fixed)
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1
           mkdir -p ~/.android/licenses
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" > ~/.android/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
 
-      - name: Initialize Buildozer
+      - name: Initialize Buildozer (Fixed)
         working-directory: ./src
         run: |
-          buildozer init
-          sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/#android.sdk_path =/android.sdk_path = ~\/.android/' buildozer.spec
+          if [ ! -f "buildozer.spec" ]; then
+            buildozer init
+            sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+            sed -i 's/#android.sdk_path =/android.sdk_path = ~\/.android/' buildozer.spec
+          fi
           buildozer -v android clean
 
       - name: Build APK
         working-directory: ./src
         run: |
-          buildozer -v android debug
+          buildozer -v android debug 2>&1 | tee build.log
           ls -la bin/
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: kivy-app
           path: src/bin/*.apk
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: src/build.log
