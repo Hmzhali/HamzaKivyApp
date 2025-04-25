@@ -59,13 +59,13 @@ jobs:
 
       - name: Clone python-for-android
         run: |
-          mkdir -p $HOME/.buildozer/android/platform
-          cd $HOME/.buildozer/android/platform
-          git clone --branch develop https://github.com/kivy/python-for-android.git
-      - name: Build APK
-        run: |
-          buildozer -v android clean
-          buildozer -v android debug
+           mkdir -p .buildozer/android/platform
+            cd .buildozer/android/platform
+            git clone --branch develop https://github.com/kivy/python-for-android.git
+            - name: Build APK
+             run: |
+           buildozer -v android clean
+           buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
