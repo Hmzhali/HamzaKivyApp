@@ -1,16 +1,8 @@
-name: Build HamzaTradeApp
+name: Build Kivy APK
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-
-env:
-  ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
-  ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
-  P4A_DIR: /home/runner/.buildozer/android/platform/python-for-android
-  _JAVA_OPTIONS: "-Xmx4G -XX:+UseG1GC"
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
 
 jobs:
   build:
@@ -28,44 +20,46 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -y
+          sudo apt-get update
           sudo apt-get install -y \
-            tar gzip git wget zip unzip openjdk-17-jdk \
-            python3-pip autoconf libtool zlib1g-dev \
-            libncurses5-dev libffi-dev libssl-dev patchelf cmake ninja-build
+            zip unzip openjdk-17-jdk \
+            python3-pip autoconf libtool \
+            git wget zlib1g-dev \
+            libncurses5-dev libffi-dev libssl-dev cmake
 
-      - name: Setup Python environment
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
-          pip install buildozer==1.5.0 cython==0.29.36
+          python -m pip install --upgrade pip wheel
+          pip install buildozer cython==0.29.36
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK & NDK
         run: |
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          cd $ANDROID_SDK_ROOT/cmdline-tools
+          mkdir -p .buildozer/android/platform
+          
+          # Install SDK
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-*.zip
-          mv cmdline-tools latest
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "build-tools;34.0.0" "platforms;android-34" "emulator"
+          unzip -q commandlinetools-linux-*.zip -d .buildozer/android/platform/android-sdk/cmdline-tools
+          mv .buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools .buildozer/android/platform/android-sdk/cmdline-tools/latest
+          yes | .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
-      - name: Setup Android NDK
-        run: |
-          cd ~/.buildozer/android/platform
+          # Install NDK
           wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform
           rm android-ndk-r25b-linux.zip
 
       - name: Clone python-for-android
         run: |
-           mkdir -p .buildozer/android/platform
-            cd .buildozer/android/platform
-            git clone --branch develop https://github.com/kivy/python-for-android.git
-            - name: Build APK
-             run: |
-           buildozer -v android clean
-           buildozer -v android debug
+          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
+
+      - name: Build APK
+        run: |
+          export ANDROID_SDK_ROOT=$PWD/.buildozer/android/platform/android-sdk
+          export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
+          buildozer -v android clean
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -73,11 +67,3 @@ jobs:
           name: HamzaTradeApp_APK
           path: bin/*.apk
           retention-days: 7
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build_Logs
-          path: .buildozer/android/platform/build-*/dists/*/*.log
-          retention-days: 3
