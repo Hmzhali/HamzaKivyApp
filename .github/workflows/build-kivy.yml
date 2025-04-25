@@ -51,8 +51,8 @@ jobs:
       - name: Clone python-for-android
         run: |
           mkdir -p $P4A_DIR
-          git clone --depth 1 --branch 2024.05.20 https://github.com/kivy/python-for-android.git $P4A_DIR
-
+          
+          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git $P4A_DIR
       - name: Setup Android SDK
         run: |
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
