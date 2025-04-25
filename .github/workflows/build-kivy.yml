@@ -13,24 +13,35 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install system dependencies (Fixed)
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
               git unzip openjdk-17-jdk \
               python3-pip autoconf libtool \
               pkg-config zlib1g-dev \
-              libncurses5-dev libncursesw5-dev \
-              libtinfo-dev cmake libffi-dev libssl-dev  # تم استبدال libtinfo5 بـ libtinfo-dev
+              libncurses-dev cmake libffi-dev libssl-dev
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip wheel
           pip install --upgrade buildozer cython==0.29.33 virtualenv
 
-      - name: Accept Android licenses
+      - name: Setup Android SDK
         run: |
           mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-*.zip -d ~/.android/cmdline-tools
+          mv ~/.android/cmdline-tools/cmdline-tools ~/.android/cmdline-tools/latest
+          echo "export ANDROID_HOME=$HOME/.android" >> ~/.bashrc
+          echo "export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools" >> ~/.bashrc
+          source ~/.bashrc
+
+      - name: Accept Android licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          mkdir -p ~/.android/licenses
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" > ~/.android/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
 
@@ -38,21 +49,17 @@ jobs:
         working-directory: ./src
         run: |
           buildozer init
-          # تعديلات أساسية على ملف buildozer.spec
           sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/#android.sdk_path =/android.sdk_path = ~\/.buildozer\/android\/platform\/android-sdk/' buildozer.spec
+          sed -i 's/#android.sdk_path =/android.sdk_path = ~\/.android/' buildozer.spec
           buildozer -v android clean
 
-      - name: Build APK (with retry)
+      - name: Build APK
         working-directory: ./src
         run: |
-          for i in {1..3}; do
-            buildozer -v android debug && break || sleep 30
-          done
+          buildozer -v android debug
           ls -la bin/
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: kivy-app
