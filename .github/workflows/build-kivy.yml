@@ -17,15 +17,16 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          
       - name: Install system dependencies
         run: |
          sudo apt-get update
          sudo apt-get install -y \
          zip unzip openjdk-17-jdk \
-         python3-pip autoconf libtool \
-          automake libltdl-dev gettext \
-          git wget zlib1g-dev \
-          libncurses5-dev libffi-dev libssl-dev cmake
+          python3-pip autoconf libtool automake \
+           libltdl-dev gettext pkg-config \
+            git wget zlib1g-dev \
+            libncurses5-dev libffi-dev libssl-dev cmake
 
       - name: Install Python dependencies
         run: |
