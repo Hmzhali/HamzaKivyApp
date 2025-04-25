@@ -8,19 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify project structure
-        run: |
-          ls -la
-          if [ ! -f "HamzaTradeApp.py" ]; then
-            echo "❌ Error: HamzaTradeApp.py not found!"
-            exit 1
-          fi
-          # إنشاء مجلد src إذا كان غير موجود ونقل الملفات إليه
-          mkdir -p src
-          cp HamzaTradeApp.py src/main.py
-          cp buildozer.spec src/
-          cp README.md src/
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -40,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install --upgrade buildozer cython==0.29.33 virtualenv
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK and NDK
         run: |
           mkdir -p ~/.android
           touch ~/.android/repositories.cfg
@@ -49,6 +36,11 @@ jobs:
           mv ~/.android/cmdline-tools/cmdline-tools ~/.android/cmdline-tools/latest
           echo "export ANDROID_HOME=$HOME/.android" >> $GITHUB_ENV
           echo "$HOME/.android/cmdline-tools/latest/bin:$HOME/.android/platform-tools" >> $GITHUB_PATH
+          
+          # تثبيت NDK يدوياً
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d ~/.android
+          mv ~/.android/android-ndk-r25b ~/.android/ndk/25.2.9519653
 
       - name: Accept Android licenses
         run: |
@@ -57,18 +49,23 @@ jobs:
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" > ~/.android/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
 
-      - name: Initialize Buildozer
-        working-directory: ./src
+      - name: Install python-for-android
         run: |
-          if [ ! -f "buildozer.spec" ]; then
-            buildozer init
-          fi
+          git clone https://github.com/kivy/python-for-android.git
+          mkdir -p .buildozer/android/platform
+          mv python-for-android .buildozer/android/platform/
+          cd .buildozer/android/platform/python-for-android
+          pip install -e .
+
+      - name: Initialize Buildozer
+        run: |
+          buildozer init
           sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/#android.sdk_path =/android.sdk_path = ~\/.android/' buildozer.spec
+          sed -i 's|#android.ndk_path = .*|android.ndk_path = ~/.android/ndk/25.2.9519653|' buildozer.spec
+          sed -i 's|#android.sdk_path = .*|android.sdk_path = ~/.android|' buildozer.spec
           buildozer -v android clean
 
       - name: Build APK
-        working-directory: ./src
         run: |
           buildozer -v android debug 2>&1 | tee build.log
           ls -la bin/
@@ -78,11 +75,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kivy-app
-          path: src/bin/*.apk
+          path: bin/*.apk
 
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: src/build.log
+          path: build.log
