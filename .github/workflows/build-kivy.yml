@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
+  ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
+  _JAVA_OPTIONS: "-Xmx4G -XX:+UseG1GC"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,6 +19,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: 'src'
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,39 +31,47 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y \
-            zip unzip openjdk-17-jdk python3-pip autoconf libtool \
-            git wget zlib1g-dev libncurses5-dev libffi-dev libssl-dev patchelf cmake ninja-build
+            tar gzip git wget zip unzip \
+            openjdk-17-jdk python3-pip \
+            autoconf libtool cmake ninja-build \
+            zlib1g-dev libncurses5-dev libffi-dev libssl-dev patchelf
 
-      - name: Install Python dependencies
+      - name: Install Buildozer
+        working-directory: ./src
         run: |
           python -m pip install --upgrade "pip<24.1" setuptools==70.0.0 wheel==0.43.0
           pip install buildozer==1.5.0 cython==0.29.36
 
-      - name: Setup Android SDK and NDK
+      - name: Setup Android SDK
         run: |
-          mkdir -p ~/.buildozer/android/platform
-          cd ~/.buildozer/android/platform
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip
-          mkdir cmdline-tools
-          mv cmdline-tools/* cmdline-tools/
-          yes | ~/.buildozer/android/platform/cmdline-tools/bin/sdkmanager --licenses
-          ~/.buildozer/android/platform/cmdline-tools/bin/sdkmanager \
-            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          unzip -q commandlinetools-linux-*.zip
+          mv cmdline-tools latest
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34" "emulator"
 
+      - name: Setup Android NDK
+        run: |
+          cd ~/.buildozer/android/platform
           wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip -q android-ndk-r25b-linux.zip
           rm android-ndk-r25b-linux.zip
 
       - name: Build APK
+        working-directory: ./src
         run: |
+          export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
+          buildozer -v android clean
           buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: HamzaTradeApp_APK
-          path: bin/*.apk
+          path: src/bin/*.apk
           retention-days: 7
