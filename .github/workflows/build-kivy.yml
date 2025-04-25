@@ -1,69 +1,131 @@
-name: Build Kivy APK
+name: Kivy Android Build Pipeline
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90  # زيادة الوقت لعمليات البناء الطويلة
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: 'src'
+          fetch-depth: 0  # لضمان جلب كل تاريخ المشروع
 
-      - name: Set up Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          cache: 'pip'  # تفعيل الكاش لتسريع العملية
 
-      - name: Install system dependencies
+      - name: Install system tools
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y \
             zip unzip openjdk-17-jdk \
             python3-pip autoconf libtool \
             git wget zlib1g-dev \
-            libncurses5-dev libffi-dev libssl-dev cmake
+            libncurses5-dev libncursesw5-dev \
+            libffi-dev libssl-dev cmake \
+            libxml2-dev libxslt1-dev \
+            ninja-build  # إضافة ninja لتحسين البناء
 
-      - name: Install Python dependencies
+      - name: Install Python packages
         run: |
           python -m pip install --upgrade pip wheel
-          pip install buildozer cython==0.29.36
+          pip install --no-cache-dir \
+            buildozer==1.5.0 \
+            cython==0.29.36 \
+            virtualenv==20.24.3  # تحديد إصدارات دقيقة
 
-      - name: Setup Android SDK & NDK
+      - name: Configure Android environment
         run: |
-          mkdir -p .buildozer/android/platform
+          # إنشاء الهيكل الأساسي
+          mkdir -p ~/.android/{licenses,cmdline-tools}
+          touch ~/.android/repositories.cfg
+
+          # تنزيل وتثبيت Android SDK
+          if [ ! -d ~/.android/cmdline-tools/latest ]; then
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+            unzip -q commandlinetools-linux-*.zip -d ~/.android/cmdline-tools
+            mv ~/.android/cmdline-tools/cmdline-tools ~/.android/cmdline-tools/latest
+          fi
+
+          # تنزيل وتثبيت Android NDK
+          if [ ! -d ~/.android/ndk/25.2.9519653 ]; then
+            wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+            unzip -q android-ndk-r25b-linux.zip -d ~/.android
+            mv ~/.android/android-ndk-r25b ~/.android/ndk/25.2.9519653
+          fi
+
+          # قبول التراخيص
+          echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-license
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.android/licenses/android-sdk-preview-license
+
+          # تثبيت الحزم الأساسية
+          ~/.android/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34" "ndk;25.2.9519653"
+
+      - name: Initialize Buildozer
+        working-directory: ./src
+        run: |
+          if [ ! -f "buildozer.spec" ]; then
+            buildozer init
+            # التعديلات التلقائية لملف المواصفات
+            sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+            sed -i 's|#android.ndk_path = .*|android.ndk_path = ~/.android/ndk/25.2.9519653|' buildozer.spec
+            sed -i 's|#android.sdk_path = .*|android.sdk_path = ~/.android|' buildozer.spec
+            sed -i 's|#android.ndk_version = .*|android.ndk_version = 25.2.9519653|' buildozer.spec
+            sed -i 's|#android.api = 31|android.api = 34|' buildozer.spec
+          fi
+
+      - name: Build Android APK
+        working-directory: ./src
+        env:
+          ANDROID_HOME: ~/.android
+          ANDROID_NDK_HOME: ~/.android/ndk/25.2.9519653
+          PATH: $PATH:~/.android/cmdline-tools/latest/bin:~/.android/platform-tools
+        run: |
+          # تنظيف البناء السابق
+          buildozer android clean || true
           
-          # Install SDK
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-*.zip -d .buildozer/android/platform/android-sdk/cmdline-tools
-          mv .buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools .buildozer/android/platform/android-sdk/cmdline-tools/latest
-          yes | .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          # تنفيذ البناء مع تحسينات للأداء
+          buildozer -v android release \
+            -- \
+            --color=always \
+            --storage-dir=$HOME/.buildozer/android/platform \
+            --ndk-api=21 \
+            --ignore-setup-py 2>&1 | tee build.log
 
-          # Install NDK
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform
-          rm android-ndk-r25b-linux.zip
+          # التحقق من وجود APK
+          APK_PATH=$(find bin -name '*.apk' | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "❌ Failed to build APK"
+            cat build.log
+            exit 1
+          else
+            echo "✅ APK built successfully: $APK_PATH"
+            echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+          fi
 
-      - name: Clone python-for-android
-        run: |
-          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
-
-      - name: Build APK
-        run: |
-          export ANDROID_SDK_ROOT=$PWD/.buildozer/android/platform/android-sdk
-          export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
-          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
-          buildozer -v android clean
-          buildozer -v android debug
-
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HamzaTradeApp_APK
-          path: bin/*.apk
+          name: App-Release
+          path: src/bin/*.apk
           retention-days: 7
+          if-no-files-found: error
+
+      - name: Archive build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Logs
+          path: src/build.log
+          retention-days: 3
