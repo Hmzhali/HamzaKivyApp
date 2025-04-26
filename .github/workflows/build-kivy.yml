@@ -1,5 +1,4 @@
 name: Build Kivy APK with Cache
-
 on:
   push:
     branches: [main]
@@ -7,24 +6,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-
+    container: kivy/buildozer:python3.10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Cache .buildozer
+      - uses: actions/checkout@v4
+      - name: Cache
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: ${{ runner.os }}-buildozer-cache
-          restore-keys: |
-            ${{ runner.os }}-buildozer-cache
+          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
+      - name: Build APK
+        run: buildozer android debug --verbose
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HamzaTradeApp_APK
+          path: bin/*.apk
 
       - name: Install system dependencies
         run: |
