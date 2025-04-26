@@ -1,69 +1,56 @@
-name: Build Kivy APK with Cache
+name: Build Kivy APK
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: kivy/buildozer
+    timeout-minutes: 60
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Cache
-        uses: actions/cache@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          path: .buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
-      - name: Build APK
-        run: buildozer android debug --verbose
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: HamzaTradeApp_APK
-          path: bin/*.apk
+          python-version: "3.10"
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            zip unzip openjdk-17-jdk \
-            python3-pip autoconf libtool automake \
-            libltdl-dev gettext autopoint \
-            git wget zlib1g-dev \
-            libncurses5-dev libffi-dev libssl-dev cmake
+            python3-pip python3-setuptools python3-wheel \
+            build-essential zip unzip openjdk-17-jdk \
+            autoconf libtool automake libltdl-dev gettext autopoint \
+            git wget zlib1g-dev libncurses5-dev libffi-dev libssl-dev cmake
+
+      - name: Install buildozer
+        run: |
+          pip install --upgrade pip wheel
+          pip install buildozer cython==0.29.36
 
       - name: Setup Android SDK & NDK
         run: |
-          mkdir -p .buildozer/android/platform
-          mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools
-
+          mkdir -p $HOME/.buildozer/android/platform
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-*.zip -d .buildozer/android/platform/android-sdk/cmdline-tools
-          mv .buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools .buildozer/android/platform/android-sdk/cmdline-tools/latest
-          yes | .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
-
+          unzip -q commandlinetools-linux-9477386_latest.zip -d $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          mv $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
           wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform
+          unzip -q android-ndk-r25b-linux.zip -d $HOME/.buildozer/android/platform
           rm android-ndk-r25b-linux.zip
-
-      - name: Clone python-for-android
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
-
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip wheel
-          pip install -r requirements.txt
-          pip install buildozer
 
       - name: Build APK
         run: |
-          export ANDROID_SDK_ROOT=$PWD/.buildozer/android/platform/android-sdk
-          export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
-          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
+          export ANDROIDSDK=$HOME/.buildozer/android/platform/android-sdk
+          export ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b
+          export PATH=$PATH:$ANDROIDSDK/platform-tools:$ANDROIDSDK/cmdline-tools/latest/bin
           buildozer android clean
           buildozer android debug
 
