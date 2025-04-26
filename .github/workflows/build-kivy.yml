@@ -50,14 +50,17 @@ jobs:
         run: |
           git clone --depth 1 --branch develop https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
 
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip wheel
+          pip install -r requirements.txt
+          pip install buildozer
+
       - name: Build APK
         run: |
           export ANDROID_SDK_ROOT=$PWD/.buildozer/android/platform/android-sdk
           export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
           export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
-          pip install --upgrade pip wheel
-          pip install -r requirements.txt
-          pip install buildozer
           buildozer android clean
           buildozer android debug
 
@@ -67,7 +70,3 @@ jobs:
           name: HamzaTradeApp_APK
           path: bin/*.apk
           retention-days: 7
-          
-           git add .
-           git commit -m "إعداد بناء تطبيق Kivy تلقائي كامل"
-            git push
