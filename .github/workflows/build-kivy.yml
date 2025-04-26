@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: kivy/buildozer:python3.10
+    container: kivy/buildozer
     steps:
       - uses: actions/checkout@v4
       - name: Cache
