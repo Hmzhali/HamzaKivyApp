@@ -8,55 +8,50 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-pip python3-setuptools python3-wheel \
-            build-essential zip unzip openjdk-17-jdk \
-            autoconf libtool automake libltdl-dev gettext autopoint \
-            git wget zlib1g-dev libncurses5-dev libffi-dev libssl-dev cmake
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip
+        sudo apt-get install -y autoconf libtool automake libltdl-dev
+        sudo apt-get install -y libncurses5-dev libffi-dev libssl-dev git wget
 
-      - name: Install buildozer
-        run: |
-          pip install --upgrade pip wheel
-          pip install buildozer cython==0.29.36
+    - name: Setup Android SDK & NDK
+      run: |
+        mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+        unzip -q commandlinetools-linux-8512546_latest.zip -d .buildozer/android/platform/android-sdk/cmdline-tools
+        mv .buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools .buildozer/android/platform/android-sdk/cmdline-tools/latest
+        yes | .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=.buildozer/android/platform/android-sdk "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+        unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform/
+        rm android-ndk-r25b-linux.zip
 
-      - name: Setup Android SDK & NDK
-        run: |
-          mkdir -p $HOME/.buildozer/android/platform
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip -d $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          mv $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
-          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-          unzip -q android-ndk-r25b-linux.zip -d $HOME/.buildozer/android/platform
-          rm android-ndk-r25b-linux.zip
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install --upgrade pip wheel
+        pip install cython==0.29.36
+        pip install buildozer appdirs
 
-      - name: Build APK
-        run: |
-          export ANDROIDSDK=$HOME/.buildozer/android/platform/android-sdk
-          export ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b
-          export PATH=$PATH:$ANDROIDSDK/platform-tools:$ANDROIDSDK/cmdline-tools/latest/bin
-          buildozer android clean
-          buildozer android debug
+    - name: Clone python-for-android
+      run: |
+        git clone --depth=1 https://github.com/kivy/python-for-android.git .buildozer/android/platform/python-for-android
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: HamzaTradeApp_APK
-          path: bin/*.apk
-          retention-days: 7
+    - name: Build APK
+      run: |
+        buildozer android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: HamzaTradeApp-APK
+        path: bin/*.apk
