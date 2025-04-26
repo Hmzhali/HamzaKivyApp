@@ -56,9 +56,8 @@ jobs:
           export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
           export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
           pip install --upgrade pip wheel
-          pip install cython==0.29.36
+          pip install -r requirements.txt
           pip install buildozer
-          pip install appdirs        # << تمت إضافته هنا
           buildozer android clean
           buildozer android debug
 
