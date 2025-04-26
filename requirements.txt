@@ -4,3 +4,11 @@ binance
 requests
 cython==0.29.36
 appdirs
+packaging
+colorama
+jinja2
+sh
+six
+pyyaml
+toml
+build
