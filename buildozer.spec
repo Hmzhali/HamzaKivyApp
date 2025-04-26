@@ -17,7 +17,7 @@ android.build_tools_version = 34.0.0
 android.accept_sdk_license = True
 
 # هذه الخاصية لتحديد المعالجات المدعومة (نوصي بدعم معماريتين)
-android.arch = armeabi-v7a, arm64-v8a
+android.archs = arm64-v8a
 
 [buildozer]
 log_level = 2
