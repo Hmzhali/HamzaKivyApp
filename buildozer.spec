@@ -23,3 +23,4 @@ android.archs = arm64-v8a
 log_level = 2
 warn_on_root = 1
 java.heap_size = 4G
+p4a.cpu_count = 2
