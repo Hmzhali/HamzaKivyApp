@@ -7,7 +7,9 @@ pipelines:
     source:
       type: git
       branch: main
+
     actions:
+      # 1) Cache
       - type: cache
         name: Cache buildozer & pip
         paths:
@@ -16,12 +18,16 @@ pipelines:
         key: hamza-kivy-cache-{{repo_revision}}
         restore_keys:
           - hamza-kivy-cache-
+
+      # 2) Install system dependencies
       - type: shell
         name: Install system dependencies
         shell: bash
         commands:
           - sudo apt-get update
           - sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip autoconf libtool automake libltdl-dev gettext autopoint git wget zlib1g-dev libncurses5-dev libffi-dev libssl-dev cmake
+
+      # 3) Setup Android SDK & NDK
       - type: shell
         name: Setup Android SDK & NDK
         shell: bash
@@ -35,6 +41,8 @@ pipelines:
           - wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           - unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform
           - rm android-ndk-r25b-linux.zip
+
+      # 4) Install Python deps
       - type: shell
         name: Install Python dependencies
         shell: bash
@@ -42,6 +50,8 @@ pipelines:
           - python3 -m pip install --upgrade pip wheel
           - pip install -r requirements.txt
           - pip install buildozer
+
+      # 5) Build APK
       - type: shell
         name: Build APK
         shell: bash
@@ -51,6 +61,8 @@ pipelines:
           - export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
           - buildozer android clean
           - buildozer android debug
+
+      # 6) Upload artifact
       - type: upload
         name: Upload APK
         paths:
