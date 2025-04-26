@@ -1,0 +1,6 @@
+kivy
+python-telegram-bot
+binance
+requests
+cython==0.29.36
+appdirs
