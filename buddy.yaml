@@ -74,3 +74,4 @@ pipelines:
         paths:
           - bin/*.apk
         artifact_name: HamzaTradeApp.apk
+        
