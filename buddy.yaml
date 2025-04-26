@@ -1,0 +1,76 @@
+project:
+  name: HamzaKivyApp
+
+pipelines:
+  - name: Build Kivy APK
+    trigger_mode: ON_EVERY_PUSH
+    source:
+      type: git
+      branch: main
+
+    actions:
+      # 1) Cache مجلدات buildozer و pip
+      - type: cache
+        name: Cache buildozer & pip
+        paths:
+          - .buildozer/
+          - ~/.cache/pip/
+        key: hamza-kivy-cache-{{repo_revision}}
+        restore_keys:
+          - hamza-kivy-cache-
+
+      # 2) تثبيت متطلبات النظام
+      - type: shell
+        name: Install system dependencies
+        shell: bash
+        commands:
+          - sudo apt-get update
+          - sudo apt-get install -y \
+              zip unzip openjdk-17-jdk python3-pip \
+              autoconf libtool automake libltdl-dev \
+              gettext autopoint git wget zlib1g-dev \
+              libncurses5-dev libffi-dev libssl-dev cmake
+
+      # 3) إعداد Android SDK & NDK
+      - type: shell
+        name: Setup Android SDK & NDK
+        shell: bash
+        commands: |
+          mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip -d .buildozer/android/platform/android-sdk/cmdline-tools
+          mv .buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools \
+             .buildozer/android/platform/android-sdk/cmdline-tools/latest
+          yes | .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          .buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip -q android-ndk-r25b-linux.zip -d .buildozer/android/platform
+          rm android-ndk-r25b-linux.zip
+
+      # 4) تثبيت مكتبات Python
+      - type: shell
+        name: Install Python dependencies
+        shell: bash
+        commands:
+          - python3 -m pip install --upgrade pip wheel
+          - pip install -r requirements.txt
+          - pip install buildozer
+
+      # 5) بناء الـ APK
+      - type: shell
+        name: Build APK
+        shell: bash
+        commands: |
+          export ANDROID_SDK_ROOT=$PWD/.buildozer/android/platform/android-sdk
+          export ANDROID_NDK_HOME=$PWD/.buildozer/android/platform/android-ndk-r25b
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
+          buildozer android clean
+          buildozer android debug
+
+      # 6) رفع الأرتيفاكت (APK)
+      - type: upload
+        name: Upload APK
+        paths:
+          - bin/*.apk
+        artifact_name: HamzaTradeApp.apk
