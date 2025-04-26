@@ -67,3 +67,7 @@ jobs:
           name: HamzaTradeApp_APK
           path: bin/*.apk
           retention-days: 7
+          
+           git add .
+           git commit -m "إعداد بناء تطبيق Kivy تلقائي كامل"
+            git push
